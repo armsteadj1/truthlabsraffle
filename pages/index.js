@@ -2,7 +2,39 @@ import Head from 'next/head'
 import Image from 'next/image'
 import styles from '../styles/Home.module.css'
 
-export default function Home() {
+function Home({ nfts }) {
+
+  const collections = [{
+    name: "🔺Illuminati NFT",
+    slug: "illuminaticollective",
+    points: 8,
+    perRaffle: 8 / 8,
+  },
+  {
+    name: "🔺The 187",
+    slug: "the187",
+    points: 16,
+    perRaffle: 8 / 16,
+  },
+  {
+    name: "🔺[REDACTED]",
+    slug: "redacted23",
+    points: "?",
+    perRaffle: 0,
+  },
+  {
+    name: "🔺Illuminary",
+    slug: "illuminatinft-illuminaries",
+    points: 16,
+    perRaffle: 8 / 16,
+  },
+  {
+    name: "🔺Kryptic Kids",
+    slug: "kryptic-kids",
+    points: 1,
+    perRaffle: 8 / 1,
+  }]
+
   return (
     <div className={styles.container}>
       <Head>
@@ -13,43 +45,34 @@ export default function Home() {
 
       <main className={styles.main}>
         <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
+          Truth Labs raffle ticket calculator
         </h1>
 
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
+        <h2>Best Price to get a Raffle Ticket</h2>
 
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
+        <table>
+          <thead>
+            <tr>
+              <th>NFT</th>
+              <th>Points</th>
+              <th>Floor</th>
+              <th>#/Raffle</th>
+              <th>Cost/Raffle</th>
+            </tr>
+          </thead>
+          <tbody>
+            {collections.map(({ name, points, slug, perRaffle }) => (
+              <tr>
+                <td>{name}</td>
+                <td>{points}</td>
+                <td>{nfts[slug].floor_price}</td>
+                <td>{perRaffle}</td>
+                <td>{nfts[slug].floor_price * perRaffle}</td>
+              </tr>
+            ))}
 
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/canary/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
+          </tbody>
+        </table>
       </main>
 
       <footer className={styles.footer}>
@@ -67,3 +90,49 @@ export default function Home() {
     </div>
   )
 }
+
+// This function gets called at build time on server-side.
+// It may be called again, on a serverless function, if
+// revalidation is enabled and a new request comes in
+export async function getStaticProps() {
+  const collections = [{ slug: "illuminaticollective" }, { slug: "the187" }, { slug: "redacted23" }, { slug: "illuminatinft-illuminaries" }, { slug: "kryptic-kids" }]
+  const assets = [{ slug: "inducted", contract_id: "0xbfc5f30e9da14d9506a0ea1eea71e2bf6bb0c3f9", token_id: "1" }]
+
+  const collectionStats = [];
+  // await Promise.all(
+  //   collections.map(
+  //     async ({ slug }) =>
+  //       (await (await fetch(`https://api.opensea.io/api/v1/collection/${slug}/stats`)).json()).stats
+  //   ))
+
+  const assetsStats = await Promise.all(
+    assets.map(
+      async ({ contract_id, token_id }) => {
+
+        console.log(`https://api.opensea.io/api/v1/asset/${contract_id}/${token_id}`)
+        const res = await fetch(`https://api.opensea.io/api/v1/asset/${contract_id}/${token_id}`);
+        console.log("-------", res.status)
+        return (await (res)).json().stats
+      }
+    ))
+
+  const statObject = [...collections, ...assets].reduce((current, { slug }, i) => (
+    {
+      ...current,
+      [slug]: collectionStats[i]
+    }
+  )
+    , {})
+
+  return {
+    props: {
+      nfts: statObject
+    },
+    // Next.js will attempt to re-generate the page:
+    // - When a request comes in
+    // - At most once every 10 seconds
+    revalidate: 10, // In seconds
+  }
+}
+
+export default Home
